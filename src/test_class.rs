@@ -20,6 +20,7 @@ mod sizes {
     pub const CONTROL_ENDPOINT: u8 = 8;
     pub const BULK_ENDPOINT: u16 = 64;
     pub const INTERRUPT_ENDPOINT: u16 = 31;
+    pub const ISOCHRONOUS_ENDPOINT: u16 = 32;
 }
 
 /// Test USB class for testing USB driver implementations. Supports various endpoint types and
@@ -32,9 +33,12 @@ pub struct TestClass<'a, B: UsbBus> {
     ep_bulk_out: EndpointOut<'a, B>,
     ep_interrupt_in: EndpointIn<'a, B>,
     ep_interrupt_out: EndpointOut<'a, B>,
+    ep_iso_in: EndpointIn<'a, B>,
+    ep_iso_out: EndpointOut<'a, B>,
     control_buf: [u8; sizes::BUFFER],
     bulk_buf: [u8; sizes::BUFFER],
     interrupt_buf: [u8; sizes::BUFFER],
+    iso_buf: [u8; sizes::BUFFER],
     len: usize,
     i: usize,
     bench: bool,
@@ -42,6 +46,8 @@ pub struct TestClass<'a, B: UsbBus> {
     expect_bulk_out: bool,
     expect_interrupt_in_complete: bool,
     expect_interrupt_out: bool,
+    expect_iso_in_complete: bool,
+    expect_iso_out: bool,
 }
 
 pub const VID: u16 = 0x16c0;
@@ -73,9 +79,22 @@ impl<B: UsbBus> TestClass<'_, B> {
             ep_bulk_out: alloc.bulk(sizes::BULK_ENDPOINT),
             ep_interrupt_in: alloc.interrupt(sizes::INTERRUPT_ENDPOINT, 1),
             ep_interrupt_out: alloc.interrupt(sizes::INTERRUPT_ENDPOINT, 1),
+            ep_iso_in: alloc.isochronous(
+                IsochronousSynchronizationType::NoSynchronization,
+                IsochronousUsageType::Data,
+                sizes::ISOCHRONOUS_ENDPOINT,
+                1
+            ),
+            ep_iso_out: alloc.isochronous(
+                IsochronousSynchronizationType::NoSynchronization,
+                IsochronousUsageType::Data,
+                sizes::ISOCHRONOUS_ENDPOINT,
+                1
+            ),
             control_buf: [0; sizes::BUFFER],
             bulk_buf: [0; sizes::BUFFER],
             interrupt_buf: [0; sizes::BUFFER],
+            iso_buf: [0; sizes::BUFFER],
             len: 0,
             i: 0,
             bench: false,
@@ -83,6 +102,8 @@ impl<B: UsbBus> TestClass<'_, B> {
             expect_bulk_out: false,
             expect_interrupt_in_complete: false,
             expect_interrupt_out: false,
+            expect_iso_in_complete: false,
+            expect_iso_out: false,
         }
     }
 
@@ -164,6 +185,18 @@ impl<B: UsbBus> TestClass<'_, B> {
             Err(UsbError::WouldBlock) => { },
             Err(err) => panic!("interrupt read {:?}", err),
         };
+
+        match self.ep_iso_out.read(&mut self.iso_buf) {
+            Ok(count) => {
+                if self.expect_iso_out {
+                    self.expect_iso_out = false;
+                } else {
+                    //panic!("Unexpectedly read data from iso out endpoint");
+                }
+            }
+            Err(UsbError::WouldBlock) => { },
+            Err(err) => {}, //panic!("Isochronous read {:?}", err),
+        }
     }
 
     fn write_bulk_in(&mut self, write_empty: bool) {
@@ -197,6 +230,8 @@ impl<B: UsbBus> UsbClass<B> for TestClass<'_, B> {
         self.expect_bulk_out = false;
         self.expect_interrupt_in_complete = false;
         self.expect_interrupt_out = false;
+        self.expect_iso_in_complete = false;
+        self.expect_iso_out = false;
     }
 
     fn get_configuration_descriptors(&self, writer: &mut DescriptorWriter) -> Result<()> {
@@ -205,6 +240,8 @@ impl<B: UsbBus> UsbClass<B> for TestClass<'_, B> {
         writer.endpoint(&self.ep_bulk_out)?;
         writer.endpoint(&self.ep_interrupt_in)?;
         writer.endpoint(&self.ep_interrupt_out)?;
+        writer.endpoint(&self.ep_iso_in)?;
+        writer.endpoint(&self.ep_iso_out)?;
         writer.interface_alt(self.iface, 1, 0xff, 0x01, 0x00, Some(self.interface_string))?;
 
         Ok(())
@@ -241,6 +278,12 @@ impl<B: UsbBus> UsbClass<B> for TestClass<'_, B> {
             } else {
                 panic!("unexpected endpoint_in_complete");
             }
+        } else if addr == self.ep_iso_in.address() {
+            if self.expect_iso_in_complete {
+                self.expect_iso_in_complete = false;
+            } else {
+                //panic!("Unexpected iso_in_complete");
+            }
         }
     }
 
@@ -249,6 +292,8 @@ impl<B: UsbBus> UsbClass<B> for TestClass<'_, B> {
             self.expect_bulk_out = true;
         } else if addr == self.ep_interrupt_out.address() {
             self.expect_interrupt_out = true;
+        } else if addr == self.ep_iso_out.address() {
+            self.expect_iso_out = true;
         }
     }
 
