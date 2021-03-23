@@ -319,7 +319,9 @@ impl<B: UsbBus> UsbBusAllocator<B> {
 pub struct InterfaceNumber(u8);
 
 impl From<InterfaceNumber> for u8 {
-    fn from(n: InterfaceNumber) -> u8 { n.0 }
+    fn from(n: InterfaceNumber) -> u8 {
+        n.0
+    }
 }
 
 /// A handle for a USB string descriptor that contains its index.
@@ -333,7 +335,9 @@ impl StringIndex {
 }
 
 impl From<StringIndex> for u8 {
-    fn from(i: StringIndex) -> u8 { i.0 }
+    fn from(i: StringIndex) -> u8 {
+        i.0
+    }
 }
 
 /// Event and incoming packet information returned by [`UsbBus::poll`].
@@ -358,7 +362,7 @@ pub enum PollResult {
 
         /// A SETUP packet has been received. This event should continue to be reported until the
         /// packet is read. The corresponding bit in `ep_out` may also be set but is ignored.
-        ep_setup: u16
+        ep_setup: u16,
     },
 
     /// A USB suspend request has been detected or, in the case of self-powered devices, the device
