@@ -188,13 +188,8 @@ pub mod class_prelude {
     pub use crate::class::{ControlIn, ControlOut, UsbClass};
     pub use crate::control;
     pub use crate::descriptor::{BosWriter, DescriptorWriter};
-    pub use crate::descriptor::{BosWriter, DescriptorWriter};
     pub use crate::endpoint::{EndpointAddress, EndpointIn, EndpointOut, EndpointType};
-    pub use crate::endpoint::{
-        EndpointAddress, EndpointIn, EndpointOut, EndpointType, IsochronousSynchronizationType,
-        IsochronousUsageType,
-    };
-    pub use crate::UsbError;
+    pub use crate::endpoint::{IsochronousSynchronizationType, IsochronousUsageType};
     pub use crate::UsbError;
 }
 
